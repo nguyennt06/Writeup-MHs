@@ -144,3 +144,4 @@ $\implies$ Khai thác null byte
  /image?filename=../../../etc/passwd%00.png
  ```
  ![image](https://hackmd.io/_uploads/rk__k9JPZe.png)
+
