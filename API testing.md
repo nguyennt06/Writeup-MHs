@@ -109,6 +109,7 @@ $\implies$ Nếu giá trị `isAmin` trong request được gắn cho đối tư
 -- Đăng nhập với credential cho trước
 -- Thực hiện mua jacket với số dư $0.00, ta nhận được các request
 ![image](https://hackmd.io/_uploads/By-xU4gF-g.png)
+
 -- Check từng response để xem, liệu server có tiết lộ một param ẩn nào không?
 
 - Với request `POST /api/checkout` để thanh toán thực sự sản phẩm, ta gửi đi request với body:  
