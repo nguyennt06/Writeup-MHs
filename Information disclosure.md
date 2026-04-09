@@ -221,6 +221,9 @@ $\implies$ Sửa endpoint thành `/admin/delete?username=carlos` và hoàn thàn
 
 <img width="1072" height="348" alt="image" src="https://github.com/user-attachments/assets/2b161a77-e6e4-43ef-a453-7a8aba7ff119" />
 
+<img width="821" height="690" alt="image" src="https://github.com/user-attachments/assets/6ac95bf0-673c-44a6-acd2-a09aac933e7d" />
+
+
 <img width="1143" height="398" alt="image" src="https://github.com/user-attachments/assets/920fe2aa-653d-4a00-a965-a6469ccd21a1" />
 
 
