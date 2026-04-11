@@ -2,17 +2,39 @@
 
 # Race condition là gì?
 ## 1. Bản chất và Nguồn cơn của Lỗ hổng (Root Cause)
+**Đây là nguồn cơn cốt lõi trong kiến trúc phần mềm dẫn đến việc Server bị khai thác**
 
-\-Lỗ hổng Race Condition trên web hiện đại xuất phát 100% từ phía Server
+***\- Lỗ hổng Race Condition trên web hiện đại xuất phát 100% từ phía Server***
 
-\-Nguyên nhân cốt lõi:Máy chủ web hiện đại được thiết kế để xử lý hàng ngàn yêu cầu cùng lúc bằng cách chia nhỏ thành nhiều luồng (threads) hoạt động song song. Lỗ hổng sinh ra khi nhiều luồng này cùng tương tác (đọc/ghi) vào một Trạng thái dùng chung (Shared State) trong cơ sở dữ liệu, nhưng lập trình viên lại bỏ quên cơ chế "Khóa" (Locking) dữ liệu trong quá trình xử lý.
+### a. Nhóm Nguyên nhân Gốc rễ (Root Causes)
 
-\- Điều này tạo ra một "Khoảng hở thời gian" (Time-gap) cực kỳ nguy hiểm giữa hai hành động:
-- Kiểm tra (Time-of-Check): Server đọc dữ liệu để xem có thỏa mãn điều kiện không, ví dụ: Số dư có đủ không? Mã giảm giá đã dùng chưa?
-- Thực thi (Time-of-Use): Server chốt hành động và cập nhật dữ liệu, ví dụ: Trừ tiền, chuyển trạng thái mã thành đã sử dụng
+\- Concurrency (Xử lý đồng thời / Đa luồng): Khả năng máy chủ mở nhiều luồng (threads) cùng lúc để xử lý nhiều yêu cầu (requests) nhằm tăng hiệu suất. Nếu không có đa luồng, sẽ không có Race Condition
 
-\- Nếu kẻ tấn công lách được vào khoảng hở này, ép Server thực hiện nhiều bước "Kiểm tra" cùng lúc trước khi bất kỳ luồng nào kịp "Thực thi", hệ thống sẽ bị đánh lừa.
+\- Shared State (Trạng thái dùng chung): Vùng dữ liệu (như số dư ví, giỏ hàng, biến lưu email tạm thời) bị nhiều luồng cùng trỏ vào để đọc hoặc ghi trong cùng một thời điểm
 
+\- Thiếu cơ chế Locking (Khóa dữ liệu): *Nguyên nhân chí mạng nhất*. Lập trình viên không thiết lập lệnh "khóa" tạm thời cái Shared State lại khi một luồng đang xử lý. Việc cửa mở hớ hênh cho phép các luồng khác tự do nhảy vào can thiệp giữa chừng
+
+### b. Nhóm Sai hỏng Logic (Logical Flaws)
+**Khi 3 nguyên nhân gốc rễ ở trên hội tụ, chúng sẽ sinh ra các lỗ hổng logic cụ thể:**
+
+\- TOCTOU (Time-of-Check to Time-of-Use): Lỗi khoảng hở thời gian. Server chia một nghiệp vụ làm 2 bước rời rạc: 
+- Bước 1 là "Kiểm tra" (Check - ví dụ: xem đủ tiền không)
+- Bước 2 là "Thực thi" (Use - ví dụ: trừ tiền). Kẻ tấn công lách vào khoảng hở vài mili-giây giữa 2 bước này để đánh tráo dữ liệu (nhét thêm hàng vào giỏ)
+
+\- Partial Construction (Khởi tạo không hoàn chỉnh): Quá trình khởi tạo một đối tượng (như User) bị chia làm nhiều nhịp. Trong một tích tắc, tài khoản tồn tại trong Database nhưng bị "khuyết" dữ liệu (ví dụ: Token xác nhận bị rỗng). Kẻ tấn công gửi lệnh xác thực ngay đúng tích tắc đó để ép server duyệt thành công
+
+\- Collision / State Override (Va chạm / Ghi đè trạng thái): Server dùng chung một biến tạm cho nhiều luồng (VD: pending_email). Luồng 2 chạy nhanh hơn đè dữ liệu lên biến tạm của Luồng 1, khiến Luồng 1 thực thi sai đích đến (Gửi nhầm token sang mail của attacker)
+
+### c. Nhóm Yếu tố Mạng & Thời gian (Network & Timing)
+**Đây là các yếu tố vật lý quyết định việc khai thác thành công hay thất bại.**
+
+\- Time Latency (Độ trễ thời gian): Tổng thời gian một gói tin đi từ máy tính của bạn đến máy chủ. (Khái niệm cơ bản, không mang tính quyết định trong khai thác)
+
+\- Network Jitter (Biến thiên độ trễ mạng): Sự sai lệch thời gian đến đích của các gói tin gửi đi cùng lúc do tình trạng mạng Internet không ổn định. Đây là rào cản lớn nhất, khiến các request đến Server bị so le nhau, không tạo ra được sự va chạm luồng
+
+\- Single-packet Attack (Tấn công gói tin đơn): Tuyệt chiêu vượt qua Network Jitter. Gom hàng chục request lại, nhét chung vào đúng một gói TCP (dựa trên HTTP/2) và bắn đi. Khi gói tin tới nơi, mọi request bung ra cùng một lúc, ép Server phải tiếp nhận song song tuyệt đối
+
+\- Time Resolution / Internal Jitter (Độ phân giải thời gian CPU): Kẻ thù cuối cùng ở mức vi mô. Dù gói tin đến cùng lúc, CPU của Server khi chia việc cho các luồng vẫn có thể bị lệch nhau vài micro-giây. Để chiến thắng yếu tố hên xui này, ta phải tăng "hỏa lực" (gửi 20-30 cặp request cùng lúc) để ép ít nhất 2 luồng phải trùng khít thời gian thực thi
 ## 2. Bước ngoặt công nghệ: Single-packet Attack
 
 \- Trong quá khứ, Race Condition thường bị coi là "hên xui" vì sự cản trở của Độ trễ mạng (Network Jitter) – các gói tin gửi đi cùng lúc nhưng đến Server lại lệch nhau vài mili-giây.
@@ -21,7 +43,7 @@
 - Công cụ sẽ gom 20-30 yêu cầu (requests) lại, kìm byte cuối cùng của chúng, đóng gói vào một gói tin TCP duy nhất và bắn đi.
 - Khi gói tin này chạm card mạng của Server, toàn bộ yêu cầu bung ra tại đúng một micro-giây, ép hệ thống bộc lộ sơ hở một cách tuyệt đối.
 
-## 3. Dấu hiệu nhận biết mục tiêu (Reconnaissance)Trong quá trình pentest hoặc làm Lab, hãy khoanh vùng các chức năng có 1 trong 3 đặc điểm sau:
+## 3. Dấu hiệu nhận biết mục tiêu (Reconnaissance)
 \- Có áp đặt Giới hạn định lượng (Limits/Quotas): Bất cứ tính năng nào liên quan đến số đếm. Ví dụ: Số dư ví, số lần áp dụng voucher, giới hạn số lần nhập sai mật khẩu (rate-limit), số lượng hàng tồn kho
 
 \- Có luồng xử lý Đa điểm (Multi-endpoint): Khi nhiều API khác nhau cùng thao tác lên một luồng dữ liệu. Ví dụ điển hình là quy trình thương mại điện tử: /cart (thêm đồ) và /checkout (chốt đơn) cùng can thiệp vào một Session giỏ hàng
@@ -29,14 +51,14 @@
 \- Có trạng thái nhạy cảm thời gian (Time-sensitive/Partial Construction): Các quy trình tạo ra trạng thái tạm thời. Ví dụ: Đăng ký tài khoản (Tạo User vào DB trước, sinh Token xác nhận sau), hoặc sinh Token quên mật khẩu dựa trên dấu thời gian (Timestamp) của máy chủ
 
 ## 4. Kịch bản khai thác thực tế & CTF:
-### A. Trong môi trường CTF (Tập trung vào Logic Bypass)
+### a. Trong môi trường CTF (Tập trung vào Logic Bypass)
 \- Vượt rào xác thực (Partial Construction): Lợi dụng khoảng hở giữa việc Server khởi tạo bản ghi người dùng nhưng chưa kịp sinh Token. Kẻ tấn công gửi ngay một request POST /confirm với tham số token rỗng. Server so sánh token rỗng với trường token chưa tồn tại trong DB, dẫn đến việc tài khoản được xác thực trái phép
 
 \- Va chạm Token (Token Collision): Khi Server dùng thời gian hệ thống (Timestamp) để băm (Hash) ra Token đổi mật khẩu. Kẻ tấn công gửi đồng thời 2 request đổi mật khẩu cho mình và cho nạn nhân. Hai luồng chạy cùng một micro-giây sẽ đẻ ra 2 token giống hệt nhau, cho phép lấy token của mình để đặt lại mật khẩu của nạn nhân
 
 \- Thao túng trạng thái giỏ hàng (TOCTOU &rarr; time-of-check time-of-use): Đợi luồng Thanh toán vừa kiểm tra xong số dư hợp lệ cho một món đồ rẻ tiền, lập tức dùng luồng Giỏ hàng chèn một cờ (Flag item) giá trị cao vào. Server chốt đơn mù và cấp cờ dù số dư không đủ
 
-### B. Trong Pentest Doanh nghiệp (Tập trung vào Thiệt hại tài chính)
+### b. Trong Pentest Doanh nghiệp (Tập trung vào Thiệt hại tài chính)
 \- Thương mại điện tử (Limit-overrun): Nhân bản mã giảm giá. Gửi 20 request áp dụng cùng một mã voucher 100k bằng Single-packet. Cả 20 luồng đều vượt qua khâu "Kiểm tra" và trừ thẳng 2.000.000 VNĐ vào hóa đơn trước khi mã đó bị khóa
 
 \- Tài chính / Fintech (Double Spending): Lỗ hổng kinh điển nhất. Người dùng có 10.000.000 VNĐ, đặt lệnh rút toàn bộ số tiền này về 2 số tài khoản ngân hàng khác nhau cùng một tích tắc. Server duyệt cả hai lệnh, dẫn đến việc rút thành công 20.000.000 VNĐ từ số dư ban đầu
