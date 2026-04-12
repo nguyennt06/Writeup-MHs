@@ -131,7 +131,7 @@ $\implies$ Tìm tới request với status code 302, và kết quả:
 
 <img width="991" height="285" alt="image" src="https://github.com/user-attachments/assets/630d4abd-aad7-4b4d-8c31-0a3d77458209" />
 
-## Lab 03
+# Lab 03
 <img width="1079" height="820" alt="image" src="https://github.com/user-attachments/assets/6c0a67a5-fa70-4059-a094-64703ca050e3" />
 
 \- Nhìn vào gợi ý và giao diện mua đồ, mình đoán được sẽ phải mua jacket thông qua một món hàng rẻ hơn, lợi dụng jitter, time latency mà chèn jacket vào request thanh toán
