@@ -41,12 +41,18 @@
 
 \- [Bài nghiên cứu của PortSwigger](https://portswigger.net/research/smashing-the-state-machine) đã chỉ ra cách triệt tiêu hoàn toàn sự hên xui này bằng Single-packet Attack (tận dụng kiến trúc HTTP/2):
 - Công cụ sẽ gom 20-30 yêu cầu (requests) lại, kìm byte cuối cùng của chúng, đóng gói vào một gói tin TCP duy nhất và bắn đi.
+
+  <img width="940" height="252" alt="image" src="https://github.com/user-attachments/assets/7eb4975c-21d7-4bef-b98f-75f8448f8571" />
+
 - Khi gói tin này chạm card mạng của Server, toàn bộ yêu cầu bung ra tại đúng một micro-giây, ép hệ thống bộc lộ sơ hở một cách tuyệt đối.
 
 ## 3. Dấu hiệu nhận biết mục tiêu (Reconnaissance)
 \- Có áp đặt Giới hạn định lượng (Limits/Quotas): Bất cứ tính năng nào liên quan đến số đếm. Ví dụ: Số dư ví, số lần áp dụng voucher, giới hạn số lần nhập sai mật khẩu (rate-limit), số lượng hàng tồn kho
 
 \- Có luồng xử lý Đa điểm (Multi-endpoint): Khi nhiều API khác nhau cùng thao tác lên một luồng dữ liệu. Ví dụ điển hình là quy trình thương mại điện tử: /cart (thêm đồ) và /checkout (chốt đơn) cùng can thiệp vào một Session giỏ hàng
+
+<img width="940" height="184" alt="image" src="https://github.com/user-attachments/assets/e9488bb9-801e-4606-b6b8-1365123cd068" />
+
 
 \- Có trạng thái nhạy cảm thời gian (Time-sensitive/Partial Construction): Các quy trình tạo ra trạng thái tạm thời. Ví dụ: Đăng ký tài khoản (Tạo User vào DB trước, sinh Token xác nhận sau), hoặc sinh Token quên mật khẩu dựa trên dấu thời gian (Timestamp) của máy chủ
 
@@ -58,12 +64,15 @@
 
 \- Thao túng trạng thái giỏ hàng (TOCTOU &rarr; time-of-check time-of-use): Đợi luồng Thanh toán vừa kiểm tra xong số dư hợp lệ cho một món đồ rẻ tiền, lập tức dùng luồng Giỏ hàng chèn một cờ (Flag item) giá trị cao vào. Server chốt đơn mù và cấp cờ dù số dư không đủ
 
+<img width="1212" height="635" alt="image" src="https://github.com/user-attachments/assets/b7d2e3f9-bff1-48b2-8cdc-0233bb5516fe" />
+
 ### b. Trong Pentest Doanh nghiệp (Tập trung vào Thiệt hại tài chính)
 \- Thương mại điện tử (Limit-overrun): Nhân bản mã giảm giá. Gửi 20 request áp dụng cùng một mã voucher 100k bằng Single-packet. Cả 20 luồng đều vượt qua khâu "Kiểm tra" và trừ thẳng 2.000.000 VNĐ vào hóa đơn trước khi mã đó bị khóa
 
 \- Tài chính / Fintech (Double Spending): Lỗ hổng kinh điển nhất. Người dùng có 10.000.000 VNĐ, đặt lệnh rút toàn bộ số tiền này về 2 số tài khoản ngân hàng khác nhau cùng một tích tắc. Server duyệt cả hai lệnh, dẫn đến việc rút thành công 20.000.000 VNĐ từ số dư ban đầu
 
 \- Bảo mật tài khoản (Rate-limit Bypass): Chức năng nhập mã OTP giới hạn 3 lần sai sẽ khóa tài khoản. Kẻ tấn công gom 50 mã OTP khác nhau vào một gói tin. Hệ thống kiểm tra số lần sai (đang là 0) cùng lúc cho cả 50 luồng, cho phép thử hàng loạt mã bảo mật mà không bị chặn.
+
 
 # Lab 01
 
