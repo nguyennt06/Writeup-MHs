@@ -73,6 +73,8 @@
 
 \- Bảo mật tài khoản (Rate-limit Bypass): Chức năng nhập mã OTP giới hạn 3 lần sai sẽ khóa tài khoản. Kẻ tấn công gom 50 mã OTP khác nhau vào một gói tin. Hệ thống kiểm tra số lần sai (đang là 0) cùng lúc cho cả 50 luồng, cho phép thử hàng loạt mã bảo mật mà không bị chặn.
 
+\- Một số chức năng nói rằng "Có thể tạo **tối đa** xx sản phẩm, có thể làm **tối đa** yy nhiệm vụ,..."
+
 
 # Lab 01
 
