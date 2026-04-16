@@ -60,7 +60,7 @@ Cơ chế: Tải lên file .html hoặc .svg có chứa mã JavaScript
 - Ghi đè file hệ thống: Nếu server có lỗi Path Traversal, kẻ tấn công có thể upload file đè lên các file cấu hình quan trọng, khiến ứng dụng ngừng hoạt động
 
 ## 4. Các dạng filter thường gặp và cách bypass
-### Kiểm duyệt file extension
+### 4.1 Kiểm duyệt file extension
 \- Server hay các cơ chế 
 - Blacklist, từ chối các đuôi file như .php, .phtml, .php5, .pht...
 - Whitelist, chỉ cho phép đuôi file nhất định như .png, .jpg,... mới có thể thực hiện tải file
@@ -70,7 +70,7 @@ Cơ chế: Tải lên file .html hoặc .svg có chứa mã JavaScript
 - Null bytes: `shell.php%00.jpg`, `shell.phtml%00.png`
 - Bất đồng bộ giữa bộ lọc kiểm duyệt và cách webserver xử lý file: `shell.php.`, `shell.php  .`, `shell.aspx;.png`
 
-### Kiểm duyệt Metadata và nội dung
+### 4.2 Kiểm duyệt Metadata và nội dung
 #### Kiểm duyệt MIME Type (Content-Type header)
 \- Nếu hệ thống quá tin tưởng vào Header do phía client gửi lên, nó có thể bị sửa đổi mà không phản ánh đúng bản chất thực sự của file
 
@@ -84,7 +84,7 @@ Cơ chế: Tải lên file .html hoặc .svg có chứa mã JavaScript
 - File PNG là `89 50 4E 47`
 - File GIF là `GIF89a` (rất hay sử dụng để bypass filter)
 
-### Cách khai thác
+#### Cách khai thác
 \- Tạo một polygot (một file chứa nhiều định dạng) PHP-JPG bằng Exiftool
 
 \- Nếu server thực thi phần mã chứa trong metadata của ảnh &rarr; RCE
