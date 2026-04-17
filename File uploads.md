@@ -219,6 +219,49 @@ echo file_get_contents('/home/carlos/secret');
 \- Vào lại endpoint `/files/abc.php` và nhận kết quả
 > wn62nn8plod9I4cToSsLAmcWjnFEVc13
 
+# Lab 04
+<img width="1052" height="536" alt="image" src="https://github.com/user-attachments/assets/e669d422-0f02-46e9-b52d-f51d15003e3e" />
+
+\- Đọc mô tả của bài lab, một số file extension đã bị blacklist, không được lưu/thực thi trên hệ thống
+
+\- Thực hiện fuzz với [list các extension](https://github.com/danielmiessler/SecLists/blob/master/Discovery/Web-Content/web-extensions.txt) bằng Intruder, nhằm xác định xem file extension nào có thể dùng để bypass:
+<img width="792" height="514" alt="image" src="https://github.com/user-attachments/assets/ee94e0a7-fd5b-4dcc-ba2b-2295a1b4ac84" />
+
+- Chỉ có `.phtml` và `.php` bị filter
+
+\- Gửi file chứa hàm thực thi với extension khác:
+<img width="1812" height="329" alt="image" src="https://github.com/user-attachments/assets/5ce33e3b-633e-4839-80c5-9f3888c34449" />
+
+&rarr; Có vẻ server đã config để không thực thi lệnh PHP với file extension `.pht` này
+
+\- Đọc [docs](https://portswigger.net/web-security/file-upload#insufficient-blacklisting-of-dangerous-file-types) về lỗ hổng của bài lab này, có thể ta cần ép server phải thực thi lệnh với extension mà ta truyền vào:
+- Gửi file upload, với tên file là `.htaccess` - tệp cấu hình quan trọng trên web server Apache, cho phép thay đổi cấu hình máy chủ ở cấp độ thư mục mà không cần quyền truy cập root
+- Với nội dung: `AddType application/x-httpd-php .pht`
+- Gửi lại file `abc.pht` với body giữ nguyên
+- Truy cập `/files/avatars/abc.pht` và nhận secret
+
+&rarr; Ta còn một cách khác khá hay, ép server biên dịch và thực thi lệnh PHP với một extension hoàn toàn lạ, không phải các đuôi file thực thi quen thuộc
+
+\- Với các extension quen thuộc (như seclists ở trên), global config đã biết đến, đã set sẵn handler cho nó, để server thực thi
+```
+.php5 → SetHandler application/x-httpd-php  
+.pht → SetHandler application/x-httpd-php  
+```
+
+\- Nhưng, ta muốn tự custom một file extension của riêng mình và ép server thực thi nó:
+- Vẫn upload file `.htaccess` với nội dung khác một chút:
+```
+  AddType application/x-httpd-php .nguyencute
+  AddHandler application/x-httpd-php .nguyencute //để server xử lí file extension này giống với .php
+```
+- Gửi file `abc.nguyencute` với payload đọc secret như cách đầu tiên
+- Truy cập `/files/avatars/abc.nguyencute` và nhận secret
+  
+  <img width="1602" height="266" alt="image" src="https://github.com/user-attachments/assets/585b1af8-20d4-4d13-a9bd-55e59385cb04" />
+
+  
+
+
 # Lab 05
 <img width="1044" height="399" alt="image" src="https://github.com/user-attachments/assets/0367485a-e82a-46c2-bcaa-977724b4b5fc" />
 
