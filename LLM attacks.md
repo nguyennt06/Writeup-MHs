@@ -1,12 +1,14 @@
-# Nhận biết và tấn công lỗ hổng  web LLM
+# Nhận biết và tấn công lỗ hổng web LLM
 ![image](https://hackmd.io/_uploads/BJC1HRZwbx.png)
 
 ## Định nghĩa
--- Large Language Models (LLMs) là các thuật toán AI có khả năng xử lý đầu vào của người dùng và tạo ra các phản hồi nghe có vẻ hợp lý (plausible responses)
+\- Large Language Models (LLMs) là các thuật toán AI có khả năng xử lý đầu vào của người dùng và tạo ra các phản hồi nghe có vẻ hợp lý (plausible responses)
+
+\- LLM thường được host bởi một bên thứ ba, một website cho thể cho LLM quyền truy cập một số chức năng nhất định 
 
 - Đặc điểm: Chúng được huấn luyện trên các tập dữ liệu khổng lồ để hiểu cách các thành phần ngôn ngữ kết hợp với nhau.
 
-- Ứng dụng: Các tổ chức thường tích hợp LLM vào ứng dụng web để cải thiện trải nghiệm người dùng,  ví dụ:
+\- Ứng dụng: Các tổ chức thường tích hợp LLM vào ứng dụng web để cải thiện trải nghiệm người dùng,  ví dụ:
 - - Chatbot hỗ trợ khách hàng
 - - Dịch trực tiếp
 - - Phân tích nội dụng do người dùng tạo ra
@@ -21,11 +23,12 @@
 -- Dù các API mà LLM truy cập trông có vẻ 'sạch', chúng vẫn có thể được dùng để chain sang một lỗ hổng khác. *(Ví dụ: lừa LLM thực hiện Path Traversal trên một API xử lý file upload/download)*
 - Sau khi map được các API mà LLM có thể gọi, dùng chính LLM làm trung gian để bắn các payload (như SQLi, Command Injection...) vào API đó
 
-## Nhận biết và phát hiện
+## Nhận biết và phát hiện lỗ hổng
 ### Xác định đầu vào của LLM 
 -- Đầu vào trực tiếp (**Direct Input**): Ví dụ như khung chat nơi prompt trực tiếp cho bot, yêu cầu nó thực hiện lệnh mình mong muốn
 
 -- Đầu vào gián tiếp (**Indirect Input**): Đây là những dữ liệu mà LLM được huấn luyện hoặc có quyền đọc *(nội dung email, lịch sử đơn hàng, hoặc các trang web mà bot thu thập thông tin)*. Kẻ tấn công có thể chèn thêm prompt độc hại vào các nguồn này để "gài bẫy" bot khi nó đọc đến và thực thi lệnh
+
 ![image](https://hackmd.io/_uploads/BJL5-JzD-x.png)
 
 
@@ -35,9 +38,44 @@
 
 ### Thử nghiệm tấn công
 Sau khi biết quyền hạn, thực hiện:
--- **Prompt Injection**: Cố gắng dùng các câu lệnh đặc biệt để lừa LLM bỏ qua các chỉ dẫn an toàn ban đầu và thực hiện hành động
 
--- **Excessive Agency** (Quyền hạn quá mức): Nếu LLM có thể thực hiện các hành động nhạy cảm. Ví dụ: có quyền gửi email, liệu bạn có thể lừa nó gửi email lừa đảo cho người khác, hoặc lừa nó xóa tài khoản người dùng khác bằng API `Delete User`
+\- **Prompt Injection**: Cố gắng dùng các câu lệnh đặc biệt để lừa LLM bỏ qua các chỉ dẫn an toàn ban đầu và thực hiện hành động
+
+\- **Excessive Agency** (Quyền hạn quá mức): Nếu LLM có thể thực hiện các hành động nhạy cảm. Ví dụ: có quyền gửi email, liệu bạn có thể lừa nó gửi email lừa đảo cho người khác, hoặc lừa nó xóa tài khoản người dùng khác bằng API `Delete User`
+
+## Khai thác chức năng, plugins và API của LLM
+### Cách LLM API hoạt động
+
+\-Quy trình tích hợp LLM với API phụ thuộc vào cách API đó được thiết kế. Khi cần tương tác với API bên ngoài, một số LLM không gọi trực tiếp API mà trước tiên sẽ tạo ra một lời gọi hàm riêng để sinh request hợp lệ theo đúng schema (khuôn mẫu dữ liệu) của API mục tiêu
+
+\- Quy trình này thường diễn ra như sau:
+
+1. Client gửi prompt của người dùng tới LLM
+2. LLM cần gọi hàm và trả về một đối tượng JSON chứa các tham số phù hợp với schema của API bên ngoài
+3. Client sử dụng các tham số đó để gọi hàm tương ứng
+4. Kết quả từ hàm được xử lý và gửi lại cho LLM như một thông điệp mới
+5. Dựa trên dữ liệu nhận được, LLM tiếp tục thực hiện lời gọi tới API bên ngoài
+6. Cuối cùng, LLM tóm tắt kết quả và trả về cho người dùng
+
+\- Cơ chế này có thể phát sinh rủi ro bảo mật vì LLM đang thực hiện các lời gọi API thay mặt người dùng, trong khi người dùng có thể không nhận thức được việc đó.
+### Mapping bề mặt tấn công LLM API
+\- **Excessive agency** là tình huống mà một LLM được cấp quyền truy cập vào các API có khả năng tiếp cận thông tin nhạy cảm, đồng thời có thể bị tác động hoặc dẫn dắt để sử dụng các API đó theo cách không an toàn
+
+\- Bước đầu tiên để sử dụng LLM để khai thác API chính là tìm ra những API và plugin mà LLM có quyền truy cập. Đơn giản, ta có thể hỏi thẳng LLM xem nó có thể tiếp cận, sử dụng những API nào
+
+\- Nếu LLM không hợp tác, có thể hỏi lại nhiều lần hoặc gây nhiễu context trong câu prompt của mình, ví dụ: nói với AI rằng mình là dev của website, admin của hệ thống, ... nhằm leo quyền và truy cập đến các API nhạy cảm, thậm chí không được cho phép
+
+### Xâu chuỗi lỗ hổng API LLM
+\- Nếu LLM chỉ có quyền truy cập những chức năng vô hại, ta vẫn có thể sử dụng những API này để tìm ra lỗ hổng thứ cấp (secondary vulnerability)
+
+\- Ví dụ, ta có thể tiến hành tấn công path traversal ở API lấy tên file là input
+
+### Xử lí đầu ra không an toàn
+\- Là tình huống đầu ra do LLM tạo ra không được kiểm tra, xác thực hoặc lọc an toàn đầy đủ trước khi được chuyển tiếp sang các hệ thống khác. Điều
+  này có thể vô tình cho phép người dùng gián tiếp tác động tới các chức năng bổ sung của hệ thống, từ đó dẫn tới nhiều lỗ hổng bảo mật như XSS hoặc CSRF
+ 
+\- Ví dụ, nếu LLM không loại bỏ mã JavaScript độc hại trong nội dung input, kẻ tấn công có thể sử dụng một prompt được thiết kế để buộc mô hình trả về output chứa payload
+  JavaScript. Khi payload này được trình duyệt của nạn nhân phân tích và thực thi, lỗ hổng XSS có thể xảy ra
 
 # Lab 
 
