@@ -19,7 +19,7 @@
 $\implies$ Chính vì sự khắt khe này của SOP (cấm đọc dữ liệu chéo) đã gây khó khăn cho các ứng dụng web hiện đại. Do đó, **CORS** mới ra đời như một "tờ giấy phép" để nới lỏng sự kiểm soát của SOP
 
 # Lab 01
-![alt text](images/cors/cors/image1.png)
+![alt text](images/cors/image1.png)
 
 \- Với lab đầu tiên, server đã cấu hình CORS tin tưởng tất cả các origin. Khi này ta chỉ việc gửi .js cho nạn nhân (admin)
 
