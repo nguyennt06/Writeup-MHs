@@ -1,5 +1,5 @@
 # Thông tin chung về lỗ hổng
-![alt text](images/image.png)
+![alt text](images/cors/image.png)
 ## 1. CORS là gì?
 
 **CORS (Cross-Origin Resource Sharing)** là cơ chế của trình duyệt cho phép các tên domain hợp lệ có thể chia sẻ tài nguyên với nhau. 
@@ -19,12 +19,12 @@
 $\implies$ Chính vì sự khắt khe này của SOP (cấm đọc dữ liệu chéo) đã gây khó khăn cho các ứng dụng web hiện đại. Do đó, **CORS** mới ra đời như một "tờ giấy phép" để nới lỏng sự kiểm soát của SOP
 
 # Lab 01
-![alt text](images/image1.png)
+![alt text](images/cors/cors/image1.png)
 
 \- Với lab đầu tiên, server đã cấu hình CORS tin tưởng tất cả các origin. Khi này ta chỉ việc gửi .js cho nạn nhân (admin)
 
 \- Thật vậy, khi xem thông tin cá nhân thông qua `/accountDetails`, ta có được response: 
-![alt text](images/image4.png)
+![alt text](images/cors/image4.png)
 - Trả về header `Access-Control-Allow-Credentials: true`, cho phép trình duyệt đính kèm session cookie vào các request cross-origin và cho phép đọc dữ liệu nhạy cảm
 - Khi này ta chủ động chèn thêm một header `Origin: https://exploit-...-server.net/exploit` tùy ý vào Request để xác nhận lỗ hổng. Quan sát Response, ta thấy server trả về `Access-Control-Allow-Origin: https://exploit-...-server.net/exploit.com`
 
@@ -62,10 +62,10 @@ $\implies$ Dạng lỗ hổng **Basic Origin Reflection**
 
 \- Check Access Log của Exploit Server và lụm API Key
 
-![alt text](images/image5.png)
+![alt text](images/cors/image5.png)
 
 # Lab 02
-![alt text](images/image6.png)
+![alt text](images/cors/image6.png)
 
 \- Trong lab thứ 2, ta thử lại với việc thêm header `Origin: ` vào request và gửi đi. Thế nhưng response đã không còn trả về `Origin: ` như lab đầu tiên
 
@@ -96,10 +96,10 @@ $\implies$ Dạng lỗ hổng **Basic Origin Reflection**
 
 \- Đọc Access log và lấy ra Apikey: 
 
-![alt text](images/image7.png)
+![alt text](images/cors/image7.png)
 
 # Lab 03
-![alt text](images/image8.png)
+![alt text](images/cors/image8.png)
 
 \- Lab có gợi ý về việc khai thác MiTM, nhưng đấy là trong môi trường thực tế:
 - Nạn nhân trong khoảng địa chỉ IP private có kết nối với mạng public 
@@ -112,16 +112,16 @@ $\implies$ Dạng lỗ hổng **Basic Origin Reflection**
 \- Thử các phương pháp như `Reflected origin` lẫn `Null origin` đều không hiệu quả (đương nhiên)
 
 \- Khi bấm `Check stock` của một sản phẩm bất kì, ta có pop-up của một subdomain của trang web
-![alt text](images/image10.png)
+![alt text](images/cors/image10.png)
 
 \- Chèn header `Origin: ` vào request của domain gốc với giá trị là subdomain, không khó đoán khi response phản hồi lại đúng giá trị ấy: 
-![alt text](images/image11.png)
+![alt text](images/cors/image11.png)
 
 &rarr; Kết hợp với dữ liệu bài cho thì 100% đây là hướng khai thác chủ đạo - khai thác lỗ hỏng thông qua sự tin tưởng tuyệt đối của domain chính đối với subdomain
 
 \- Giờ cần tìm một lỗ hổng XSS trên subdomain này, mượn tay nó gửi request sang domain chính chứa mã độc trích xuất dữ liệu
 - Khi thử với tham số trên URL thì xác nhận, subdomain này đã dính **Reflected XSS**:
-![alt text](images/image12.png)
+![alt text](images/cors/image12.png)
 - Còn một dữ kiện trong đề, đó là `Insecure protocols`, sử dụng phương thức HTTP khi gửi request từ trang của victim sang subdomain
 &rarr; Khi này cơ chế bảo mật sẽ được nới lỏng và trích xuất dữ liệu trở nên dễ dang
 
@@ -173,4 +173,4 @@ document.location=
 
 \- Xem Access log và nhận Apikey:
 
-![alt text](images/image9.png)
+![alt text](images/cors/image9.png)
